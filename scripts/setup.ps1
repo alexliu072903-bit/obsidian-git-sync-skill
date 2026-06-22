@@ -1,12 +1,22 @@
+# Obsidian vault → GitHub sync (Windows)
+# Supports two modes:
+#   -IncludeFolders ""          sync the entire vault (default)
+#   -IncludeFolders "F1,F2"     sync only specified folders (allowlist)
 param(
     [Parameter(Mandatory)][string]$VaultPath,
-    [Parameter(Mandatory)][string]$RemoteUrl
+    [Parameter(Mandatory)][string]$RemoteUrl,
+    [string]$IncludeFolders = "",
+    [string]$Branch = "main",
+    [string]$CommitMessage = "sync: update Obsidian notes",
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# ── Validate ────────────────────────────────────────────────────────────────
+$SyncAll = [string]::IsNullOrWhiteSpace($IncludeFolders)
+
+# ── Validate ─────────────────────────────────────────────────────────────────
 if (-not (Test-Path $VaultPath)) {
     Write-Error "Vault path not found: $VaultPath"
     exit 1
@@ -15,17 +25,27 @@ if (-not (Test-Path $VaultPath)) {
 Set-Location $VaultPath
 Write-Host "Working in: $VaultPath"
 
-# ── Git init ────────────────────────────────────────────────────────────────
-if (-not (Test-Path ".git")) {
-    git init
-    Write-Host "Git repository initialized."
+if ($SyncAll) {
+    Write-Host "Mode: full vault"
 } else {
-    Write-Host "Git repository already exists, skipping init."
+    Write-Host "Mode: selected folders → $IncludeFolders"
 }
 
-# ── .gitignore ───────────────────────────────────────────────────────────────
-if (-not (Test-Path ".gitignore")) {
-    @"
+# ── Validate selected folders ────────────────────────────────────────────────
+if (-not $SyncAll) {
+    $folders = $IncludeFolders -split "," | ForEach-Object { $_.Trim() }
+    foreach ($folder in $folders) {
+        if (-not (Test-Path $folder)) {
+            Write-Error "Folder not found in vault: $folder"
+            exit 1
+        }
+    }
+}
+
+# ── Build .gitignore content ─────────────────────────────────────────────────
+function Get-GitignoreContent {
+    if ($SyncAll) {
+        return @"
 # Obsidian workspace state (machine-specific)
 .obsidian/workspace
 .obsidian/workspace.json
@@ -38,39 +58,93 @@ if (-not (Test-Path ".gitignore")) {
 # OS files
 .DS_Store
 Thumbs.db
-"@ | Out-File -FilePath ".gitignore" -Encoding utf8
-    Write-Host ".gitignore created."
-} else {
-    Write-Host ".gitignore already exists, skipping."
+"@
+    }
+    else {
+        $lines = @("*", "!.gitignore")
+        $folders = $IncludeFolders -split "," | ForEach-Object { $_.Trim() }
+        foreach ($folder in $folders) {
+            $lines += "!${folder}/"
+            $lines += "!${folder}/**"
+        }
+        return ($lines -join "`n")
+    }
 }
 
-# ── Remote ───────────────────────────────────────────────────────────────────
+$newGitignore = Get-GitignoreContent
+
+# ── Dry run ──────────────────────────────────────────────────────────────────
+if ($DryRun) {
+    Write-Host ""
+    Write-Host "[dry-run] .gitignore would be written as:"
+    Write-Host "---"
+    Write-Host $newGitignore
+    Write-Host "---"
+    Write-Host "[dry-run] No changes made."
+    exit 0
+}
+
+# ── Backup existing .gitignore ───────────────────────────────────────────────
+if (Test-Path ".gitignore") {
+    $backup = ".gitignore.bak.$(Get-Date -Format 'yyyyMMddHHmmss')"
+    Copy-Item ".gitignore" $backup
+    Write-Host "Backed up .gitignore → $backup"
+}
+
+$newGitignore | Out-File -FilePath ".gitignore" -Encoding utf8
+Write-Host ".gitignore written."
+
+# ── Git init ─────────────────────────────────────────────────────────────────
+if (-not (Test-Path ".git")) {
+    git init
+    Write-Host "Git repository initialized."
+} else {
+    Write-Host "Git repository already exists."
+}
+
+# ── Configure remote ─────────────────────────────────────────────────────────
 $remotes = git remote 2>$null
 if ($remotes -contains "origin") {
     git remote set-url origin $RemoteUrl
-    Write-Host "Remote 'origin' updated to: $RemoteUrl"
+    Write-Host "Remote 'origin' updated."
 } else {
     git remote add origin $RemoteUrl
-    Write-Host "Remote 'origin' set to: $RemoteUrl"
+    Write-Host "Remote 'origin' set."
+}
+
+# ── Stage files ──────────────────────────────────────────────────────────────
+git add .gitignore
+
+if ($SyncAll) {
+    git add -A
+} else {
+    $folders = $IncludeFolders -split "," | ForEach-Object { $_.Trim() }
+    foreach ($folder in $folders) {
+        git add "$folder/"
+    }
 }
 
 # ── Commit ───────────────────────────────────────────────────────────────────
-git add -A
 $status = git status --porcelain
 if ($status) {
-    git commit -m "Initial commit: sync Obsidian vault"
-    Write-Host "Initial commit created."
+    git commit -m $CommitMessage
+    Write-Host "Commit created."
 } else {
     Write-Host "Nothing new to commit."
 }
 
 # ── Push ─────────────────────────────────────────────────────────────────────
-$branch = git symbolic-ref --short HEAD 2>$null
-if (-not $branch) { $branch = "main" }
+$currentBranch = git symbolic-ref --short HEAD 2>$null
+if (-not $currentBranch) { $currentBranch = $Branch }
 
-Write-Host "Pushing branch '$branch' to origin..."
-git push -u origin $branch
+Write-Host "Pushing branch '$currentBranch' to origin..."
+git push -u origin $currentBranch
 
 Write-Host ""
 Write-Host "Done! Your vault is now synced to GitHub."
-Write-Host "Next: open Obsidian → Settings → Git → Automatic, set auto-sync interval."
+if ($SyncAll) {
+    Write-Host "Mode: full vault"
+} else {
+    Write-Host "Mode: selected folders → $IncludeFolders"
+}
+Write-Host "Next: open Obsidian → Settings → Git → Automatic, set auto-sync interval to 30 min."
