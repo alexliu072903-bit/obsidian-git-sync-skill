@@ -32,10 +32,12 @@ If the user hasn't provided all required info, ask:
 
 ## Step 2 — Run setup script
 
+`<skill-dir>` is the directory this skill is installed in, for example `~/.claude/skills/obsidian-git-sync` for Claude Code or `~/.codex/skills/obsidian-git-sync` for Codex.
+
 ### macOS — Full vault
 
 ```bash
-~/.claude/skills/obsidian-git-sync/scripts/setup.sh \
+<skill-dir>/scripts/setup.sh \
   --vault "/Users/yourname/Documents/MyVault" \
   --remote "https://github.com/user/obsidian.git" \
   --all
@@ -44,7 +46,7 @@ If the user hasn't provided all required info, ask:
 ### macOS — Selected folders
 
 ```bash
-~/.claude/skills/obsidian-git-sync/scripts/setup.sh \
+<skill-dir>/scripts/setup.sh \
   --vault "/Users/yourname/Documents/MyVault" \
   --remote "https://github.com/user/obsidian.git" \
   --include "SKILL,daily"
@@ -53,7 +55,7 @@ If the user hasn't provided all required info, ask:
 Use `--dry-run` to preview before committing:
 
 ```bash
-~/.claude/skills/obsidian-git-sync/scripts/setup.sh \
+<skill-dir>/scripts/setup.sh \
   --vault "/Users/yourname/Documents/MyVault" \
   --remote "https://github.com/user/obsidian.git" \
   --include "SKILL,daily" \
@@ -63,7 +65,7 @@ Use `--dry-run` to preview before committing:
 ### Windows — Full vault
 
 ```powershell
-& "$env:USERPROFILE\.claude\skills\obsidian-git-sync\scripts\setup.ps1" `
+& "<skill-dir>\scripts\setup.ps1" `
   -VaultPath "D:\ob\Obsidian Vault" `
   -RemoteUrl "https://github.com/user/obsidian.git"
 ```
@@ -71,7 +73,7 @@ Use `--dry-run` to preview before committing:
 ### Windows — Selected folders
 
 ```powershell
-& "$env:USERPROFILE\.claude\skills\obsidian-git-sync\scripts\setup.ps1" `
+& "<skill-dir>\scripts\setup.ps1" `
   -VaultPath "D:\ob\Obsidian Vault" `
   -RemoteUrl "https://github.com/user/obsidian.git" `
   -IncludeFolders "SKILL,daily"
@@ -80,7 +82,7 @@ Use `--dry-run` to preview before committing:
 Dry run:
 
 ```powershell
-& "$env:USERPROFILE\.claude\skills\obsidian-git-sync\scripts\setup.ps1" `
+& "<skill-dir>\scripts\setup.ps1" `
   -VaultPath "D:\ob\Obsidian Vault" `
   -RemoteUrl "https://github.com/user/obsidian.git" `
   -IncludeFolders "SKILL,daily" `

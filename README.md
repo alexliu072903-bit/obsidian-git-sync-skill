@@ -1,138 +1,105 @@
-**[English](README.md) | [中文](README.zh.md)**
+# Obsidian Git Sync
 
-A Claude Code skill that syncs your Obsidian vault to GitHub in one sentence — no manual git commands needed.
+**English | [中文](README.zh-CN.md)**
 
-Supports **Windows** (full-vault sync) and **macOS** (selected-folder allowlist sync).
+A skill that syncs your Obsidian vault to GitHub from one sentence to your agent. You decide first which folders may leave your machine.
 
-## Platform support
+It works with Claude Code, Codex, and any agent that loads a `SKILL.md`, on Windows and macOS.
 
-| Platform | Script | Strategy |
-|---|---|---|
-| Windows | `scripts/setup.ps1` | Full-vault sync |
-| macOS | `scripts/setup.sh` | Selected-folder sync (allowlist) |
+## What you say
 
----
+> Sync my Obsidian vault to GitHub.
 
-## Windows — Full-vault sync
+or, to share only some folders:
 
-### Features
+> Sync only my SKILL and daily folders to GitHub.
 
-1. Initializes a git repository inside your vault
-2. Auto-generates an Obsidian-specific `.gitignore`
-3. Connects to your GitHub remote
-4. Pushes all notes on first run
-5. Guides you to enable auto-sync via the Obsidian Git plugin
+The agent asks for three things: the vault path, the URL of an empty GitHub repository, and the mode (the whole vault, or selected folders). Then it runs the script for your platform.
 
-### Prerequisites
+## Two modes, on both platforms
 
-- [Claude Code](https://claude.ai/code) installed
-- [Obsidian Git plugin](https://github.com/Vinzent03/obsidian-git) installed in Obsidian
-- A GitHub account with an empty repository already created
+| Mode | What it does | Use it when |
+| --- | --- | --- |
+| Full vault | Syncs every note. Obsidian internals and OS files are ignored | You want a complete private backup |
+| Selected folders | Ignores the whole vault, then opens only the folders you name (an allowlist) | You want to control exactly what leaves your machine |
 
-### Installation
+In both modes `.obsidian` settings are not included by default.
 
-```powershell
-# Windows (PowerShell)
-git clone https://github.com/alexliu072903-bit/obsidian-git-sync-skill `
-  "$env:USERPROFILE\.claude\skills\obsidian-git-sync"
-```
+## Install
 
-### Usage
+Clone the repository into your agent's skills directory.
 
-Open Claude Code and say:
-
-> "Help me sync my Obsidian vault to GitHub"
-
-Claude will ask for:
-1. Your vault path (e.g. `D:\ob\Obsidian Vault`)
-2. Your GitHub repo URL (e.g. `https://github.com/yourname/obsidian.git`)
-
-Everything else is automated.
-
----
-
-## macOS — Selected-folder sync
-
-### Features
-
-1. Initializes a git repository inside your vault (if not already initialized)
-2. Generates an **allowlist-based `.gitignore`** — ignores the entire vault by default, includes only your chosen folders
-3. Does **not** include `.obsidian` by default — no app settings leaked
-4. Supports `--dry-run` to preview without making any changes
-5. Backs up any existing `.gitignore` before overwriting
-6. Connects to your GitHub remote and pushes
-
-### Prerequisites
-
-- macOS with `git` installed (comes with Xcode command-line tools)
-- [Claude Code](https://claude.ai/code) installed
-- A GitHub account with an empty repository already created
-
-### Installation
+Claude Code on macOS:
 
 ```bash
-git clone https://github.com/alexliu072903-bit/obsidian-git-sync-skill \
-  ~/.claude/skills/obsidian-git-sync
+git clone https://github.com/alexliu072903-bit/obsidian-git-sync-skill ~/.claude/skills/obsidian-git-sync
 ```
 
-### Usage
+Codex on macOS:
 
-Open Claude Code and say:
+```bash
+git clone https://github.com/alexliu072903-bit/obsidian-git-sync-skill ~/.codex/skills/obsidian-git-sync
+```
 
-> "Sync my Obsidian SKILL and daily folders to GitHub"
+On Windows, clone into `%USERPROFILE%\.claude\skills\obsidian-git-sync` or `%USERPROFILE%\.codex\skills\obsidian-git-sync` in the same way.
 
-Claude will ask for:
-1. Your vault path (e.g. `/Users/yourname/Documents/obsidian`)
-2. Your GitHub repo URL
-3. Which folders to include
+## Requirements
 
-#### Manual usage
+- `git`. On macOS it comes with the Xcode command line tools.
+- A GitHub account and an **empty** repository. Choose Private and do not add a README.
+- For automatic syncing after the first push, the [Obsidian Git plugin](https://github.com/Vinzent03/obsidian-git).
+
+## Run it yourself
+
+You do not need an agent. Both scripts take the same information.
+
+macOS, selected folders, previewing first:
 
 ```bash
 ~/.claude/skills/obsidian-git-sync/scripts/setup.sh \
-  --vault "/Users/yourname/Documents/obsidian" \
-  --remote "https://github.com/yourname/obsidian-notes.git" \
-  --include "SKILL,daily"
+  --vault "/Users/you/Documents/MyVault" \
+  --remote "https://github.com/you/obsidian-notes.git" \
+  --include "SKILL,daily" \
+  --dry-run
 ```
 
-Options:
+Windows, full vault:
 
-| Flag | Required | Default | Description |
-|---|---|---|---|
-| `--vault` | ✅ | — | Absolute path to your Obsidian vault |
-| `--remote` | ✅ | — | GitHub remote URL (`.git`) |
-| `--include` | ✅ | — | Comma-separated folders to sync |
-| `--branch` | — | `main` | Git branch name |
-| `--message` | — | `sync selected Obsidian folders` | Commit message |
-| `--dry-run` | — | off | Preview mode — no files changed |
-
-#### Selected-folder `.gitignore` shape
-
-```gitignore
-*
-!.gitignore
-!SKILL/
-!SKILL/**
-!daily/
-!daily/**
+```powershell
+& "$env:USERPROFILE\.claude\skills\obsidian-git-sync\scripts\setup.ps1" `
+  -VaultPath "D:\ob\Obsidian Vault" `
+  -RemoteUrl "https://github.com/you/obsidian-notes.git"
 ```
 
-Only the folders you name are tracked. Everything else (including `.obsidian`) stays local.
+| Option (macOS) | Option (Windows) | Meaning |
+| --- | --- | --- |
+| `--vault` | `-VaultPath` | Path to the vault (required) |
+| `--remote` | `-RemoteUrl` | GitHub remote URL (required) |
+| `--all` | leave `-IncludeFolders` empty | Sync the whole vault |
+| `--include A,B` | `-IncludeFolders "A,B"` | Sync only these folders. Cannot be combined with `--all` |
+| `--branch` | `-Branch` | Branch name, default `main` |
+| `--message` | `-CommitMessage` | Commit message |
+| `--dry-run` | `-DryRun` | Show what would change without changing anything |
 
----
+## Safety defaults
 
-## Auto-sync via Obsidian Git plugin
+- Before it replaces a `.gitignore`, the script saves a timestamped backup.
+- In selected-folder mode it never runs `git add .`; it adds the folders you named.
+- If the vault is already a git repository, its history is kept.
+- Use an empty remote. A remote that already has commits needs you to merge histories yourself.
 
-After the first push, open Obsidian on either platform:
+## Automatic sync after the first push
 
-**Settings → Community plugins → Git → Automatic**
+In Obsidian open Settings, then Git, then Automatic:
 
-| Setting | Recommended value |
-|---|---|
+| Setting | Recommended |
+| --- | --- |
 | Auto commit-and-sync interval (minutes) | `30` |
 | Auto pull interval (minutes) | `30` |
 
----
+## Not tested
+
+`scripts/setup.sh` is a bash script and may run on Linux, but it has only been used on macOS.
 
 ## License
 
